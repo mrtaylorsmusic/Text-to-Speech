@@ -31,8 +31,8 @@ if uploaded_file:
                 # Upload to Gemini File API
                 sample_file = genai.upload_file(path=tmp_path, display_name="User PDF")
                 
-                # Use Gemini Flash (fast and supports PDFs)
-                model = genai.GenerativeModel("gemini-flash-latest")
+                # Use Gemini 1.5 Flash (fast and supports PDFs)
+                model = genai.GenerativeModel("models/gemini-1.5-flash")
                 response = model.generate_content([
                     "Please extract all the text from this document as a single continuous string. "
                     "Do not add any summaries or extra commentary, just the text content.",
@@ -55,23 +55,118 @@ if "extracted_text" in st.session_state:
     
     st.subheader("Controls")
     
-    # Custom HTML/JavaScript for Play, Pause, Resume
+    # Custom HTML/JavaScript for Play, Pause, Resume with voice selection
     # This uses the browser's native Speech Synthesis API
     tts_html = f"""
     <div style="background: #f0f2f6; padding: 20px; border-radius: 10px;">
-        <button onclick="playTTS()" style="padding: 10px 20px; cursor: pointer;">▶️ Play</button>
-        <button onclick="pauseTTS()" style="padding: 10px 20px; cursor: pointer;">⏸️ Pause</button>
-        <button onclick="resumeTTS()" style="padding: 10px 20px; cursor: pointer;">▶️ Resume</button>
-        <button onclick="stopTTS()" style="padding: 10px 20px; cursor: pointer;">⏹️ Stop</button>
+        <div style="margin-bottom: 15px;">
+            <label for="voiceSelect" style="font-weight: bold; margin-right: 10px;">Voice:</label>
+            <select id="voiceSelect" style="padding: 8px; border-radius: 5px; min-width: 250px;">
+                <option>Loading voices...</option>
+            </select>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label for="rateSlider" style="font-weight: bold; margin-right: 10px;">Speed:</label>
+            <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1.0" style="width: 200px;">
+            <span id="rateValue" style="margin-left: 10px;">1.0x</span>
+        </div>
+        
+        <div>
+            <button onclick="playTTS()" style="padding: 10px 20px; cursor: pointer; margin-right: 5px;">▶️ Play</button>
+            <button onclick="pauseTTS()" style="padding: 10px 20px; cursor: pointer; margin-right: 5px;">⏸️ Pause</button>
+            <button onclick="resumeTTS()" style="padding: 10px 20px; cursor: pointer; margin-right: 5px;">▶️ Resume</button>
+            <button onclick="stopTTS()" style="padding: 10px 20px; cursor: pointer;">⏹️ Stop</button>
+        </div>
     </div>
 
     <script>
         var msg = new SpeechSynthesisUtterance();
         msg.text = `{text.replace('`', "'").replace('$', '\\$')}`;
-        msg.rate = 1.0; // Speed
+        msg.rate = 1.0;
+        var voices = [];
+
+        // Load available voices
+        function loadVoices() {{
+            voices = window.speechSynthesis.getVoices();
+            var voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '';
+            
+            // Filter for English voices and prioritize Google/Microsoft voices
+            var englishVoices = voices.filter(voice => voice.lang.startsWith('en'));
+            
+            // Separate premium voices (Google, Microsoft) from others
+            var premiumVoices = englishVoices.filter(voice => 
+                voice.name.includes('Google') || 
+                voice.name.includes('Microsoft') ||
+                voice.name.includes('Premium')
+            );
+            var otherVoices = englishVoices.filter(voice => 
+                !voice.name.includes('Google') && 
+                !voice.name.includes('Microsoft') &&
+                !voice.name.includes('Premium')
+            );
+            
+            // Add premium voices first
+            if (premiumVoices.length > 0) {{
+                var optgroup = document.createElement('optgroup');
+                optgroup.label = 'Premium Voices';
+                premiumVoices.forEach((voice, index) => {{
+                    var option = document.createElement('option');
+                    option.value = voices.indexOf(voice);
+                    option.textContent = voice.name + ' (' + voice.lang + ')';
+                    optgroup.appendChild(option);
+                }});
+                voiceSelect.appendChild(optgroup);
+            }}
+            
+            // Add other voices
+            if (otherVoices.length > 0) {{
+                var optgroup = document.createElement('optgroup');
+                optgroup.label = 'Other Voices';
+                otherVoices.forEach((voice, index) => {{
+                    var option = document.createElement('option');
+                    option.value = voices.indexOf(voice);
+                    option.textContent = voice.name + ' (' + voice.lang + ')';
+                    optgroup.appendChild(option);
+                }});
+                voiceSelect.appendChild(optgroup);
+            }}
+            
+            // Select a good default voice (prefer Google US English)
+            var defaultVoice = voices.findIndex(v => v.name.includes('Google US English'));
+            if (defaultVoice === -1) {{
+                defaultVoice = voices.findIndex(v => v.name.includes('Google'));
+            }}
+            if (defaultVoice !== -1) {{
+                voiceSelect.value = defaultVoice;
+            }}
+        }}
+
+        // Load voices when ready
+        if (speechSynthesis.onvoiceschanged !== undefined) {{
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }}
+        loadVoices();
+
+        // Update rate display
+        document.getElementById('rateSlider').addEventListener('input', function() {{
+            document.getElementById('rateValue').textContent = this.value + 'x';
+        }});
 
         function playTTS() {{
             window.speechSynthesis.cancel(); // Reset any existing speech
+            
+            // Set selected voice
+            var voiceSelect = document.getElementById('voiceSelect');
+            var selectedVoiceIndex = voiceSelect.value;
+            if (voices[selectedVoiceIndex]) {{
+                msg.voice = voices[selectedVoiceIndex];
+            }}
+            
+            // Set rate
+            msg.rate = parseFloat(document.getElementById('rateSlider').value);
+            
             window.speechSynthesis.speak(msg);
         }}
 
@@ -88,7 +183,7 @@ if "extracted_text" in st.session_state:
         }}
     </script>
     """
-    st.components.v1.html(tts_html, height=100)
+    st.components.v1.html(tts_html, height=200)
 
     with st.expander("View Extracted Text"):
         st.write(text)
