@@ -1,7 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
-import tempfile
-import os
+import base64
 
 # --- APP CONFIG ---
 st.set_page_config(page_title="Gemini PDF Reader", page_icon="📖")
@@ -23,28 +22,26 @@ if uploaded_file:
     if st.button("Extract Text with Gemini"):
         with st.spinner("Gemini is reading the document..."):
             try:
-                # Save uploaded file to a temporary location for Gemini to process
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(uploaded_file.getvalue())
-                    tmp_path = tmp.name
-
-                # Upload to Gemini File API
-                sample_file = genai.upload_file(path=tmp_path, display_name="User PDF")
+                # Get PDF bytes directly
+                pdf_bytes = uploaded_file.getvalue()
+                
+                # Create a Part object with the PDF data
+                pdf_part = {
+                    "mime_type": "application/pdf",
+                    "data": base64.b64encode(pdf_bytes).decode('utf-8')
+                }
                 
                 # Use Gemini 1.5 Flash (fast and supports PDFs)
                 model = genai.GenerativeModel("models/gemini-1.5-flash")
                 response = model.generate_content([
                     "Please extract all the text from this document as a single continuous string. "
                     "Do not add any summaries or extra commentary, just the text content.",
-                    sample_file
+                    pdf_part
                 ])
                 
                 # Store text in session state
                 st.session_state.extracted_text = response.text
                 st.success("Text extracted successfully!")
-                
-                # Cleanup
-                os.remove(tmp_path)
                 
             except Exception as e:
                 st.error(f"Error: {e}")
