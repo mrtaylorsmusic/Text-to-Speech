@@ -216,6 +216,10 @@ if "extracted_text" in st.session_state:
                 updateStatus('Finished reading');
                 return;
             }}
+            
+            if (chunkIndex < 0) {{
+                chunkIndex = 0;
+            }}
 
             currentChunkIndex = chunkIndex;
             const utterance = new SpeechSynthesisUtterance(textChunks[chunkIndex]);
@@ -233,6 +237,8 @@ if "extracted_text" in st.session_state:
             utterance.onend = function() {{
                 if (!isPaused && isSpeaking) {{
                     speakChunk(chunkIndex + 1);
+                }} else if (!isSpeaking) {{
+                    updateButtons(false, false);
                 }}
             }};
             
@@ -246,7 +252,7 @@ if "extracted_text" in st.session_state:
             currentUtterance = utterance;
             window.speechSynthesis.speak(utterance);
             updateStatus(`Reading chunk ${{chunkIndex + 1}} of ${{textChunks.length}}...`);
-            updateButtons(true, false);
+            updateButtons(isSpeaking, isPaused);
         }}
 
         function playTTS() {{
@@ -288,17 +294,19 @@ if "extracted_text" in st.session_state:
         }}
         
         function skipForward() {{
-            if (currentChunkIndex < textChunks.length - 1) {{
+            if (currentChunkIndex < textChunks.length - 1 && isSpeaking) {{
                 window.speechSynthesis.cancel();
                 isPaused = false;
+                isSpeaking = true;  // Maintain speaking state
                 speakChunk(currentChunkIndex + 1);
             }}
         }}
         
         function skipBackward() {{
-            if (currentChunkIndex > 0) {{
+            if (currentChunkIndex > 0 && isSpeaking) {{
                 window.speechSynthesis.cancel();
                 isPaused = false;
+                isSpeaking = true;  // Maintain speaking state
                 speakChunk(currentChunkIndex - 1);
             }}
         }}
