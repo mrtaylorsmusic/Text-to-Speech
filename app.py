@@ -31,8 +31,8 @@ if uploaded_file:
                 # Upload to Gemini File API
                 sample_file = genai.upload_file(path=tmp_path, display_name="User PDF")
                 
-                # Use Gemini 1.5 Flash (fast and supports PDFs)
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                # Use Gemini Flash (fast and supports PDFs)
+                model = genai.GenerativeModel("gemini-flash-latest")
                 response = model.generate_content([
                     "Please extract all the text from this document as a single continuous string. "
                     "Do not add any summaries or extra commentary, just the text content.",
