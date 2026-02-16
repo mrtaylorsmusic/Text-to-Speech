@@ -80,7 +80,11 @@ if "extracted_text" in st.session_state:
             <button id="stopBtn" onclick="stopTTS()" style="padding: 10px 20px; cursor: pointer;" disabled>⏹️ Stop</button>
         </div>
         
-        <div id="status" style="font-size: 14px; color: #666;"></div>
+        <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+            <button id="skipBackBtn" onclick="skipBackward()" style="padding: 10px 20px; cursor: pointer;" disabled>⬅️ Previous</button>
+            <div id="status" style="font-size: 14px; color: #666; flex: 1; text-align: center;"></div>
+            <button id="skipForwardBtn" onclick="skipForward()" style="padding: 10px 20px; cursor: pointer;" disabled>➡️ Next</button>
+        </div>
     </div>
 
     <script>
@@ -194,6 +198,11 @@ if "extracted_text" in st.session_state:
             document.getElementById('pauseBtn').disabled = !playing || paused;
             document.getElementById('resumeBtn').disabled = !paused;
             document.getElementById('stopBtn').disabled = !playing;
+            
+            // Enable/disable skip buttons based on chunk position and if text chunks exist
+            const hasChunks = textChunks.length > 0;
+            document.getElementById('skipBackBtn').disabled = !hasChunks || currentChunkIndex <= 0;
+            document.getElementById('skipForwardBtn').disabled = !hasChunks || currentChunkIndex >= textChunks.length - 1;
         }}
 
         function updateStatus(message) {{
@@ -237,6 +246,7 @@ if "extracted_text" in st.session_state:
             currentUtterance = utterance;
             window.speechSynthesis.speak(utterance);
             updateStatus(`Reading chunk ${{chunkIndex + 1}} of ${{textChunks.length}}...`);
+            updateButtons(true, false);
         }}
 
         function playTTS() {{
@@ -275,6 +285,22 @@ if "extracted_text" in st.session_state:
             currentChunkIndex = 0;
             updateButtons(false, false);
             updateStatus('Stopped');
+        }}
+        
+        function skipForward() {{
+            if (currentChunkIndex < textChunks.length - 1) {{
+                window.speechSynthesis.cancel();
+                isPaused = false;
+                speakChunk(currentChunkIndex + 1);
+            }}
+        }}
+        
+        function skipBackward() {{
+            if (currentChunkIndex > 0) {{
+                window.speechSynthesis.cancel();
+                isPaused = false;
+                speakChunk(currentChunkIndex - 1);
+            }}
         }}
         
         // Initial button state
