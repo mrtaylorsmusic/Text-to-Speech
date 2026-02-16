@@ -8,16 +8,18 @@ st.set_page_config(page_title="Gemini PDF Reader", page_icon="📖")
 st.title("📖 Gemini PDF Reader")
 st.write("Upload a PDF and let Gemini read it out loud for you.")
 
-# --- SIDEBAR: API KEY ---
-with st.sidebar:
-    api_key = st.text_input("Enter Gemini API Key", type="password")
-    if api_key:
-        genai.configure(api_key=api_key)
+# --- CONFIGURE API KEY FROM SECRETS ---
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=api_key)
+except Exception as e:
+    st.error("API key not configured. Please add GEMINI_API_KEY to your Streamlit secrets.")
+    st.stop()
 
 # --- PDF UPLOADER ---
 uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
 
-if uploaded_file and api_key:
+if uploaded_file:
     if st.button("Extract Text with Gemini"):
         with st.spinner("Gemini is reading the document..."):
             try:
@@ -90,6 +92,3 @@ if "extracted_text" in st.session_state:
 
     with st.expander("View Extracted Text"):
         st.write(text)
-
-elif not api_key:
-    st.info("Please enter your Gemini API Key in the sidebar to begin.")
